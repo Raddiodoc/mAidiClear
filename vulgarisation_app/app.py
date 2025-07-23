@@ -1,7 +1,7 @@
 import streamlit as st
 import fitz  # PyMuPDF
 from PIL import Image
-import pytesseract
+import easyocr
 import io
 import re
 from openai import OpenAI
@@ -18,13 +18,16 @@ st.markdown("---")
 # Disclaimer
 st.info("**Ce service est informatif uniquement. Aucun avis médical. Aucune donnée n’est stockée ou transmise.**")
 
-# Initialiser l'API OpenAI
+# Init API OpenAI
 client = OpenAI(api_key=st.secrets["openai_api_key"])
 
-# Upload
+# Init OCR
+reader = easyocr.Reader(['fr', 'en'], gpu=False)
+
+# Upload fichier
 uploaded_file = st.file_uploader("📤 Uploadez votre compte-rendu (PDF ou image)", type=["pdf", "png", "jpg", "jpeg", "tiff", "bmp"])
 
-# Langue
+# Sélection de langue
 lang = st.selectbox("Langue de la vulgarisation :", ["Français", "English"])
 lang_code = "fr" if lang == "Français" else "en"
 
@@ -37,7 +40,11 @@ def extraire_texte_pdf(uploaded_file):
 
 def extraire_texte_image(uploaded_file):
     image = Image.open(uploaded_file).convert("RGB")
-    return pytesseract.image_to_string(image, lang="fra")
+    image_bytes = io.BytesIO()
+    image.save(image_bytes, format='PNG')
+    image_bytes.seek(0)
+    result = reader.readtext(image_bytes.read(), detail=0, paragraph=True)
+    return "\n".join(result)
 
 def extraire_texte(uploaded_file):
     if uploaded_file.name.lower().endswith(".pdf"):
