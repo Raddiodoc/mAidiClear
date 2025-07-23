@@ -1,5 +1,6 @@
 streamlit
 openai
-PyMuPDF
 fpdf2
+PyMuPDF
 Pillow
+requests
