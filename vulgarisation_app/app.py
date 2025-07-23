@@ -8,16 +8,22 @@ from openai import OpenAI
 from fpdf import FPDF
 from datetime import datetime
 
+# Correction bug UnicodeEncodeError avec fpdf
 st.set_page_config(page_title="mAidiClear", page_icon="🧠")
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
+# Titre
 st.markdown("<h1 style='text-align: center;'>🧠 mAidiClear</h1>", unsafe_allow_html=True)
 st.markdown("---")
 st.info("**Ce service est informatif uniquement. Aucun avis médical. Aucune donnée n’est stockée ou transmise.**")
 
+# Init OpenAI
 client = OpenAI(api_key=st.secrets["openai_api_key"])
 
+# Upload
 uploaded_file = st.file_uploader("📤 Uploadez votre compte-rendu (PDF ou image)", type=["pdf", "png", "jpg", "jpeg"])
 
+# Langue
 lang = st.selectbox("Langue de la vulgarisation :", ["Français", "English"])
 lang_code = "fr" if lang == "Français" else "en"
 
@@ -70,20 +76,24 @@ def vulgariser(texte, lang):
 def generer_pdf(texte_vulgarise):
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", size=12)
+    pdf.set_auto_page_break(auto=True, margin=15)
+    font_path = "fonts/DejaVuSans.ttf"
+    pdf.add_font("DejaVu", "", font_path, uni=True)
+    pdf.set_font("DejaVu", size=12)
 
     for line in texte_vulgarise.split("\n"):
         pdf.multi_cell(0, 10, line)
 
     pdf.ln(10)
-    pdf.set_font("Arial", "I", 8)
-    pdf.multi_cell(0, 8, "\n\nDisclaimer : Ceci est une explication simplifiée à visée informative uniquement. Aucune donnée n’a été stockée. Contact : contact@maidiclear.fr")
+    pdf.set_font("DejaVu", size=8)
+    disclaimer = "\n\nDisclaimer : Ceci est une explication simplifiée à visée informative uniquement. Aucune donnée n’a été stockée. Contact : contact@maidiclear.fr"
+    pdf.multi_cell(0, 8, disclaimer)
 
     temp_path = f"/tmp/vulgarisation_{datetime.now().timestamp()}.pdf"
     pdf.output(temp_path)
     return temp_path
 
-# Main
+# Traitement principal
 if uploaded_file:
     with st.spinner("⏳ Traitement en cours..."):
         texte_brut = extraire_texte(uploaded_file)
