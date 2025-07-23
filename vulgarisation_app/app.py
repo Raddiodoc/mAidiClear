@@ -7,11 +7,10 @@ import re
 from openai import OpenAI
 from fpdf import FPDF
 from datetime import datetime
-import requests
 
 st.set_page_config(page_title="mAidiClear", page_icon="🧠")
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
+# Titre
 st.markdown("<h1 style='text-align: center;'>🧠 mAidiClear</h1>", unsafe_allow_html=True)
 st.markdown("---")
 st.info("**Ce service est informatif uniquement. Aucun avis médical. Aucune donnée n’est stockée ou transmise.**")
@@ -72,26 +71,13 @@ def generer_pdf(texte_vulgarise):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
-
-    # Télécharger une vraie police TTF UTF-8 compatible
-    font_dir = "/tmp/fonts"
-    font_path = os.path.join(font_dir, "LiberationSans-Regular.ttf")
-    os.makedirs(font_dir, exist_ok=True)
-
-    if not os.path.exists(font_path):
-        url = "https://raw.githubusercontent.com/liberationfonts/liberation-fonts/master/LiberationSans-Regular.ttf"
-        r = requests.get(url)
-        with open(font_path, "wb") as f:
-            f.write(r.content)
-
-    pdf.add_font("Liberation", "", font_path, uni=True)
-    pdf.set_font("Liberation", size=12)
+    pdf.set_font("Helvetica", size=12)  # police intégrée (pas besoin de .ttf)
 
     for line in texte_vulgarise.split("\n"):
         pdf.multi_cell(0, 10, line)
 
     pdf.ln(10)
-    pdf.set_font("Liberation", size=8)
+    pdf.set_font("Helvetica", size=8)
     disclaimer = "\n\nDisclaimer : Ceci est une explication simplifiée à visée informative uniquement. Aucune donnée n’a été stockée. Contact : contact@maidiclear.fr"
     pdf.multi_cell(0, 8, disclaimer)
 
