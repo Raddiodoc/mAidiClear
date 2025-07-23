@@ -5,22 +5,27 @@ from PIL import Image
 import io
 import re
 from openai import OpenAI
-from fpdf import FPDF
 from datetime import datetime
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import cm
 
 st.set_page_config(page_title="mAidiClear", page_icon="🧠")
 
-# Titre
+# Titre + disclaimer
 st.markdown("<h1 style='text-align: center;'>🧠 mAidiClear</h1>", unsafe_allow_html=True)
 st.markdown("---")
 st.info("**Ce service est informatif uniquement. Aucun avis médical. Aucune donnée n’est stockée ou transmise.**")
 
+# Init API
 client = OpenAI(api_key=st.secrets["openai_api_key"])
 
+# Upload
 uploaded_file = st.file_uploader("📤 Uploadez votre compte-rendu (PDF ou image)", type=["pdf", "png", "jpg", "jpeg"])
 lang = st.selectbox("Langue de la vulgarisation :", ["Français", "English"])
 lang_code = "fr" if lang == "Français" else "en"
 
+# Extraction texte
 def convertir_image_en_pdf(image_file):
     image = Image.open(image_file).convert("RGB")
     pdf_bytes = io.BytesIO()
@@ -42,11 +47,13 @@ def extraire_texte(uploaded_file):
         pdf_file = convertir_image_en_pdf(uploaded_file)
         return extraire_texte_pdf(pdf_file)
 
+# Anonymisation simple
 def anonymiser_texte(texte):
     texte = re.sub(r'\b[A-Z][a-z]+\b', '[Nom]', texte)
     texte = re.sub(r'\b[A-Z]{2,}\b', '[TERME]', texte)
     return texte
 
+# Vulgarisation via OpenAI
 def vulgariser(texte, lang):
     prompt = {
         "fr": "Tu es un médecin expert qui explique ce compte-rendu au patient de façon simple, sans donner de conseils médicaux.",
@@ -67,24 +74,40 @@ def vulgariser(texte, lang):
         st.error(f"Erreur API : {e}")
         return ""
 
+# Génération PDF avec ReportLab
 def generer_pdf(texte_vulgarise):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.set_font("Helvetica", size=12)  # police intégrée (pas besoin de .ttf)
-
-    for line in texte_vulgarise.split("\n"):
-        pdf.multi_cell(0, 10, line)
-
-    pdf.ln(10)
-    pdf.set_font("Helvetica", size=8)
-    disclaimer = "\n\nDisclaimer : Ceci est une explication simplifiée à visée informative uniquement. Aucune donnée n’a été stockée. Contact : contact@maidiclear.fr"
-    pdf.multi_cell(0, 8, disclaimer)
-
     temp_path = f"/tmp/vulgarisation_{datetime.now().timestamp()}.pdf"
-    pdf.output(temp_path)
+    c = canvas.Canvas(temp_path, pagesize=A4)
+    width, height = A4
+    x_margin, y_margin = 2 * cm, height - 2 * cm
+    line_height = 14
+
+    # Texte principal
+    c.setFont("Helvetica", 12)
+    y = y_margin
+    for line in texte_vulgarise.split("\n"):
+        if y < 2 * cm:
+            c.showPage()
+            c.setFont("Helvetica", 12)
+            y = y_margin
+        c.drawString(x_margin, y, line)
+        y -= line_height
+
+    # Disclaimer
+    disclaimer = "\n\nDisclaimer : Ceci est une explication simplifiée à visée informative uniquement. Aucune donnée n’a été stockée. Contact : contact@maidiclear.fr"
+    c.setFont("Helvetica", 8)
+    for line in disclaimer.split("\n"):
+        if y < 2 * cm:
+            c.showPage()
+            c.setFont("Helvetica", 8)
+            y = y_margin
+        c.drawString(x_margin, y, line)
+        y -= line_height
+
+    c.save()
     return temp_path
 
+# App principale
 if uploaded_file:
     with st.spinner("⏳ Traitement en cours..."):
         texte_brut = extraire_texte(uploaded_file)
@@ -103,5 +126,4 @@ if uploaded_file:
                 file_name="compte_rendu_vulgarise.pdf",
                 mime="application/pdf"
             )
-
         os.remove(pdf_path)
