@@ -1,56 +1,46 @@
+import os
 import streamlit as st
 import fitz  # PyMuPDF
 from PIL import Image
-import easyocr
 import io
 import re
 from openai import OpenAI
 from fpdf import FPDF
-import os
 from datetime import datetime
 
 st.set_page_config(page_title="mAidiClear", page_icon="🧠")
 
-# Titre
 st.markdown("<h1 style='text-align: center;'>🧠 mAidiClear</h1>", unsafe_allow_html=True)
 st.markdown("---")
-
-# Disclaimer
 st.info("**Ce service est informatif uniquement. Aucun avis médical. Aucune donnée n’est stockée ou transmise.**")
 
-# Init API OpenAI
 client = OpenAI(api_key=st.secrets["openai_api_key"])
 
-# Init OCR
-reader = easyocr.Reader(['fr', 'en'], gpu=False)
+uploaded_file = st.file_uploader("📤 Uploadez votre compte-rendu (PDF ou image)", type=["pdf", "png", "jpg", "jpeg"])
 
-# Upload fichier
-uploaded_file = st.file_uploader("📤 Uploadez votre compte-rendu (PDF ou image)", type=["pdf", "png", "jpg", "jpeg", "tiff", "bmp"])
-
-# Sélection de langue
 lang = st.selectbox("Langue de la vulgarisation :", ["Français", "English"])
 lang_code = "fr" if lang == "Français" else "en"
 
-def extraire_texte_pdf(uploaded_file):
+def convertir_image_en_pdf(image_file):
+    image = Image.open(image_file).convert("RGB")
+    pdf_bytes = io.BytesIO()
+    image.save(pdf_bytes, format="PDF")
+    pdf_bytes.seek(0)
+    return pdf_bytes
+
+def extraire_texte_pdf(pdf_file):
     texte = ""
-    with fitz.open(stream=uploaded_file.read(), filetype="pdf") as doc:
+    with fitz.open(stream=pdf_file.read(), filetype="pdf") as doc:
         for page in doc:
             texte += page.get_text()
     return texte
-
-def extraire_texte_image(uploaded_file):
-    image = Image.open(uploaded_file).convert("RGB")
-    image_bytes = io.BytesIO()
-    image.save(image_bytes, format='PNG')
-    image_bytes.seek(0)
-    result = reader.readtext(image_bytes.read(), detail=0, paragraph=True)
-    return "\n".join(result)
 
 def extraire_texte(uploaded_file):
     if uploaded_file.name.lower().endswith(".pdf"):
         return extraire_texte_pdf(uploaded_file)
     else:
-        return extraire_texte_image(uploaded_file)
+        pdf_file = convertir_image_en_pdf(uploaded_file)
+        return extraire_texte_pdf(pdf_file)
 
 def anonymiser_texte(texte):
     texte = re.sub(r'\b[A-Z][a-z]+\b', '[Nom]', texte)
@@ -59,10 +49,10 @@ def anonymiser_texte(texte):
 
 def vulgariser(texte, lang):
     prompt = {
-        "fr": "Tu es un médecin expert qui explique ce compte-rendu au patient de façon simple, sans donner de conseils médicaux. Ne fais pas semblant de savoir si des infos manquent.",
-        "en": "You are a medical doctor explaining this report to the patient in plain language, without giving medical advice. Do not invent information if anything is missing."
+        "fr": "Tu es un médecin expert qui explique ce compte-rendu au patient de façon simple, sans donner de conseils médicaux.",
+        "en": "You are a medical doctor explaining this report to the patient in plain language, without giving medical advice."
     }[lang]
-    
+
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
@@ -93,7 +83,7 @@ def generer_pdf(texte_vulgarise):
     pdf.output(temp_path)
     return temp_path
 
-# Traitement principal
+# Main
 if uploaded_file:
     with st.spinner("⏳ Traitement en cours..."):
         texte_brut = extraire_texte(uploaded_file)
