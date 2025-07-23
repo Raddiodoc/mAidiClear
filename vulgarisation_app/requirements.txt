@@ -1,6 +1,6 @@
 streamlit
-pytesseract
-Pillow
+openai
 fpdf
 PyMuPDF
-openai
+easyocr
+Pillow
