@@ -1,4 +1,6 @@
 streamlit
-pdfplumber
-openai>=1.0.0
-reportlab
+pytesseract
+Pillow
+fpdf
+PyMuPDF
+openai
