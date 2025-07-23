@@ -3,3 +3,4 @@ openai
 fpdf2
 PyMuPDF
 Pillow
+reportlab
