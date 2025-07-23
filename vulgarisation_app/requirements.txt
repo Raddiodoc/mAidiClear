@@ -1,5 +1,5 @@
 streamlit
 openai
-fpdf
 PyMuPDF
+fpdf2
 Pillow
