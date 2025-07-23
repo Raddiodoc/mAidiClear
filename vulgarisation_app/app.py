@@ -12,22 +12,15 @@ import requests
 st.set_page_config(page_title="mAidiClear", page_icon="🧠")
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-# Titre
 st.markdown("<h1 style='text-align: center;'>🧠 mAidiClear</h1>", unsafe_allow_html=True)
 st.markdown("---")
 st.info("**Ce service est informatif uniquement. Aucun avis médical. Aucune donnée n’est stockée ou transmise.**")
 
-# Init OpenAI
 client = OpenAI(api_key=st.secrets["openai_api_key"])
 
-# Upload
 uploaded_file = st.file_uploader("📤 Uploadez votre compte-rendu (PDF ou image)", type=["pdf", "png", "jpg", "jpeg"])
-
-# Langue
 lang = st.selectbox("Langue de la vulgarisation :", ["Français", "English"])
 lang_code = "fr" if lang == "Français" else "en"
-
-# ---------- Traitements ----------
 
 def convertir_image_en_pdf(image_file):
     image = Image.open(image_file).convert("RGB")
@@ -80,33 +73,31 @@ def generer_pdf(texte_vulgarise):
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
 
-    # Télécharger la police automatiquement
+    # Télécharger une vraie police TTF UTF-8 compatible
     font_dir = "/tmp/fonts"
-    font_path = os.path.join(font_dir, "DejaVuSans.ttf")
+    font_path = os.path.join(font_dir, "LiberationSans-Regular.ttf")
     os.makedirs(font_dir, exist_ok=True)
 
     if not os.path.exists(font_path):
-        url = "https://github.com/dejavu-fonts/dejavu-fonts/raw/version_2_37/ttf/DejaVuSans.ttf"
+        url = "https://raw.githubusercontent.com/liberationfonts/liberation-fonts/master/LiberationSans-Regular.ttf"
         r = requests.get(url)
         with open(font_path, "wb") as f:
             f.write(r.content)
 
-    pdf.add_font("DejaVu", "", font_path, uni=True)
-    pdf.set_font("DejaVu", size=12)
+    pdf.add_font("Liberation", "", font_path, uni=True)
+    pdf.set_font("Liberation", size=12)
 
     for line in texte_vulgarise.split("\n"):
         pdf.multi_cell(0, 10, line)
 
     pdf.ln(10)
-    pdf.set_font("DejaVu", size=8)
+    pdf.set_font("Liberation", size=8)
     disclaimer = "\n\nDisclaimer : Ceci est une explication simplifiée à visée informative uniquement. Aucune donnée n’a été stockée. Contact : contact@maidiclear.fr"
     pdf.multi_cell(0, 8, disclaimer)
 
     temp_path = f"/tmp/vulgarisation_{datetime.now().timestamp()}.pdf"
     pdf.output(temp_path)
     return temp_path
-
-# ---------- Affichage ----------
 
 if uploaded_file:
     with st.spinner("⏳ Traitement en cours..."):
