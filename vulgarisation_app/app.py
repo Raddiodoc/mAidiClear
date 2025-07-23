@@ -7,8 +7,8 @@ import re
 from openai import OpenAI
 from fpdf import FPDF
 from datetime import datetime
+import requests
 
-# Correction bug UnicodeEncodeError avec fpdf
 st.set_page_config(page_title="mAidiClear", page_icon="🧠")
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
@@ -26,6 +26,8 @@ uploaded_file = st.file_uploader("📤 Uploadez votre compte-rendu (PDF ou image
 # Langue
 lang = st.selectbox("Langue de la vulgarisation :", ["Français", "English"])
 lang_code = "fr" if lang == "Français" else "en"
+
+# ---------- Traitements ----------
 
 def convertir_image_en_pdf(image_file):
     image = Image.open(image_file).convert("RGB")
@@ -77,7 +79,18 @@ def generer_pdf(texte_vulgarise):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
-    font_path = "fonts/DejaVuSans.ttf"
+
+    # Télécharger la police automatiquement
+    font_dir = "/tmp/fonts"
+    font_path = os.path.join(font_dir, "DejaVuSans.ttf")
+    os.makedirs(font_dir, exist_ok=True)
+
+    if not os.path.exists(font_path):
+        url = "https://github.com/dejavu-fonts/dejavu-fonts/raw/version_2_37/ttf/DejaVuSans.ttf"
+        r = requests.get(url)
+        with open(font_path, "wb") as f:
+            f.write(r.content)
+
     pdf.add_font("DejaVu", "", font_path, uni=True)
     pdf.set_font("DejaVu", size=12)
 
@@ -93,7 +106,8 @@ def generer_pdf(texte_vulgarise):
     pdf.output(temp_path)
     return temp_path
 
-# Traitement principal
+# ---------- Affichage ----------
+
 if uploaded_file:
     with st.spinner("⏳ Traitement en cours..."):
         texte_brut = extraire_texte(uploaded_file)
